@@ -49,11 +49,11 @@ Each attention block and MLP block transforms its input, but because of the resi
 
 Again, this reasoning is meant to motivate a hypothesis rather than prove a method. An empirical validation comes from checking the dot products of correlated features, and comparing this distribution to that of a simulated set of randomly-chosen feature pairs. There's a clear separation between the two distributions, suggesting that we can hopefully identify recurring features without even needing to obtain activations. 
 
-![Decoder weight dot products](plots/null_alt_dot.png)
+![Decoder weight dot products](plots/null_alt_dot.png){width=50%}
 
 I hypothesized that two instances of a recurrent feature would have a high dot product when projected into the unembedding space (e.g. logit vectors), and for that reason I also obtained the distribution of bilinear products $v_1 W_U W_U^T v_2$, which again seem to be separated, but not as much as the dot product distributions.
 
-![Decoder weight bilinear products](plots/null_alt_bilinear.png)
+![Decoder weight bilinear products](plots/null_alt_bilinear.png){width=50%}
 
 The natural application is to replace my 1st approach for discovering recurring features (high correlation on activation sets) with a decoder weights similarity search. The advantage of not using activations is that we don't have to worry about bias (e.g. using a dataset that only represents a certain set of concepts, e.g. the IMDb dataset) or the computational bottleneck of performing inference over a large dataset and two relatively-large models.
 
@@ -79,6 +79,23 @@ Interestingly, this feature pair did not have a correlation greater than 0.9, ev
 The second most similar feature pair was 2/21514 and 11/1652; these features respectively have activation densities of 5.6% and 4.0%, and don't have any legitimate interpretations. They do share a most-activating token, which is a string of special characters `âĢİ.` Spooky. This feature pair also was not discovered by activation correlation.
 
 The third most similar feature pair was 2/5186 and 11/5362, which are `the word Wilson with varying levels of specificity` and `the word Wilson in various contexts.` This one makes a lot more sense, and also was discovered by activation correlation (0.954). Again, the later feature is smarter, as evidenced by only it activating on `Seahawks Quarterback Russell.` 
+
+It's useful to see just how close two features can be. Between layers 2 and 11, the largest similarity was 0.8362. If we investigate (e.g.) layers 7 and 8, can we find the same feature in both layers?
+
+The answer turns out to be: yes, there are several features that seem to be exactly preserved between layers, and it's quite a good sign that separately trained SAE's find the same subspace here. Here I display a scatterplot of the decoder weights for 7/8598 and 8/6955, which have a similarity metric of 1.0000. These features are both activated on <|endoftext|>. 
+
+:::{.columns}
+::: {.column width="50%"}
+![Full decoder weight scatterplot](plots/decoder_weight_7_8_scatter.png){width=100%}
+:::
+
+::: {.column width="50%"}
+![0.01-0.99 quantile decoder weight scatterplot](plots/decoder_weight_7_8_scatter_zoom.png){width=100%}
+:::
+:::
+
+Interestingly, there seem to be multiple features in layers 7 and 8 that activate on <|endoftext|>, and all of them seem to have roughly the same decoder weights (similarity score of 1.0). 
+
 
 Overall, I like this method a lot more finding persistent features within a model, but there's no obvious way to translate it for different residual streams. This is where the idea of the bilinear product comes in. If two separate models have the exact same tokenizer, up to rearranging the indices of their token vocabularies. We can perhaps project the decoder vectors of their SAE's into the same space using their respective unembedding matrices, and then apply FAISS to get a list of related features. 
 
