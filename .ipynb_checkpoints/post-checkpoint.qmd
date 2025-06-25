@@ -82,18 +82,19 @@ The third most similar feature pair was 2/5186 and 11/5362, which are `the word 
 
 It's useful to see just how close two features can be. Between layers 2 and 11, the largest similarity was 0.8362. If we investigate (e.g.) layers 7 and 8, can we find the same feature in both layers?
 
-The answer turns out to be: yes, there are several features that seem to be exactly preserved between layers, and it's quite a good sign that separately trained SAE's find the same subspace here.
+The answer turns out to be: yes, there are several features that seem to be exactly preserved between layers, and it's quite a good sign that separately trained SAE's find the same subspace here. Here I display a scatterplot of the decoder weights for 7/8598 and 8/6955, which have a similarity metric of 1.0000. These features are both activated on <|endoftext|>. 
 
 :::{.columns}
 ::: {.column width="50%"}
-![Decoder weight scatterplot](plots/decoder_weight_7_8_scatter.png){width=100%}
+![Full decoder weight scatterplot](plots/decoder_weight_7_8_scatter.png){width=100%}
 :::
 
 ::: {.column width="50%"}
-![Right image](plots/decoder_weight_7_8_scatter_zoom.png){width=100%}
+![0.01-0.99 quantile decoder weight scatterplot](plots/decoder_weight_7_8_scatter_zoom.png){width=100%}
 :::
 :::
 
+Interestingly, there seem to be multiple features in layers 7 and 8 that activate on <|endoftext|>, and all of them seem to have roughly the same decoder weights (similarity score of 1.0). 
 
 
 Overall, I like this method a lot more finding persistent features within a model, but there's no obvious way to translate it for different residual streams. This is where the idea of the bilinear product comes in. If two separate models have the exact same tokenizer, up to rearranging the indices of their token vocabularies. We can perhaps project the decoder vectors of their SAE's into the same space using their respective unembedding matrices, and then apply FAISS to get a list of related features. 
