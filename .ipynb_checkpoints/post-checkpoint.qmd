@@ -1,0 +1,63 @@
+---
+title: "Understanding Sparse Autoencoders"
+author: "Shariar Vaez-Ghaemi"
+date: "2025-06-25"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    code-tools: true
+---
+
+# Introduction
+
+In statistical prediction settings, it's known that the best models are the ones with the most important features, rather than the most complicated architectures. Choosing good features for your prediction model can be easy, thanks to regularization techniques and the expressiveness of deep architectures. 
+
+But while feature engineering has become an abandoned art, feature awareness is still crucial. In the race to understand the computational paths taken by a transformer in computing a next-token prediction, mechanistic interpretability researchers have put effort into extracting concept subspaces within the intermediate representations of these transformer architectures. In particular, the technique of fitting sparse coders to these internal layer activations has allowed for obtaining explainable neurons, which typically do not exist in transformers thanks to the phenomenon of superposition.
+
+In working on classifiers based on natural language, I've become interested in how neural classifiers can be compared with each other. Since my work has primarily been focused on clinical text (e.g. discharge summaries) and clinical outcomes (e.g. 30-day mortality), I'll narrate my motivation through the lens of the healthcare domain, which I consider to be a high-stakes setting for interpretability performance. If I have two models for patient mortality prediction, one developed from fine-tuning transformer A on Dataset 1, and another developed from fine-tuning transformer B on Dataset 2, how can I compare these two models, ultimately to figure out which one has more signal-based computational processes, performs more robustly, and understands more reasons for death?
+
+If I had used two statistical models instead of two transformer models, this comparison would be easy. I could first compare the feature sets used by my models (e.g. patient age, number of diagnoses, length of stay) and then, for overlapping features, compare the coefficients being used. There are methods available for defining and sometimes visualizing the regions of disagreement between these two models. 
+
+Thanks to sparse coding algorithms for transformer interpretability, we now have a toolkit for comparing two models based on the features that they use in prediction. Off the bat, this is still a difficult problem because obtaining the features that are intrinsic to a trained architecture requires 1) obtaining a large, comprehensive set of example texts with activations, 2) choosing a layer or layers within the model to focus on, and 3) training a sparse crosscoder using that dataset and those layers. Assuming this has already been done for both models (separately), there's no obvious way to compare the feature sets of the two models. 
+
+In this technical blog post, I outline my thought process for this problem, starting with the much more basic question of finding a set of features that are shared between two residual stream layers of the same transformer model. There are some interesting results from just looking at gpt-2 small, for which residual stream SAE's have already been trained and made available through the SAELens library. 
+
+---
+
+# How to find 'recurring features'
+
+First, let's formalizing a recurring feature as a pair of latents that exist in separate models or separate layers of the same model but represent the same concept. Already this definition is hairy, because SAE latents are generally non-atomic and have somewhat subjective interpretations, which are typically written by an LLM. However, a baseline strategy for identifying whether two latents represent the same concept is to correlate their activations, using a large corpus of documents. It's immediately clear that searching for recurring features will be very time and memory intensive, particularly for SAE's with large expansion factors and low activation densities. The main computational trick I use here is calculating correlation online (so that batches can be deleted after activations are computed) and storing the $D_1$ x $D_2$ correlation matrix in sparse matrix form, so as to not eat too much memory. Together they seem to be enough for obtaining all the features with $>0.9$ correlation between two layers of gpt-2 small on a single NVIDIA A6000 GPU. 
+
+
+
+
+
+We want to minimize a loss of the form:
+
+$$
+\mathcal{L} = \|x - \hat{x}\|_2^2 + \lambda \sum_{i=1}^d |h_i|
+$$
+
+where $h_i$ are hidden layer activations.
+
+---
+
+# PyTorch Implementation
+
+```python
+import torch
+import torch.nn as nn
+
+class SparseAutoencoder(nn.Module):
+    def __init__(self, input_dim, hidden_dim, sparsity_lambda=1e-3):
+        super().__init__()
+        self.encoder = nn.Linear(input_dim, hidden_dim)
+        self.decoder = nn.Linear(hidden_dim, input_dim)
+        self.lambda_ = sparsity_lambda
+
+    def forward(self, x):
+        encoded = torch.relu(self.encoder(x))
+        decoded = self.decoder(encoded)
+        return decoded, encoded
