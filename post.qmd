@@ -55,23 +55,31 @@ I hypothesized that two instances of a recurrent feature would have a high dot p
 
 ![Decoder weight bilinear products](plots/null_alt_bilinear.png)
 
+The natural application is to replace my 1st approach for discovering recurring features (high correlation on activation sets) with a decoder weights similarity search. The advantage of not using activations is that we don't have to worry about bias (e.g. using a dataset that only represents a certain set of concepts, e.g. the IMDb dataset) or the computational bottleneck of performing inference over a large dataset and two relatively-large models.
+
+If our two decoder matrices are $D_1$ and $D_2$ (where each row is a decoder vector), we're effectively searching for the largest elements in $D_1 D_2^T$. Computing $D_1 D_2^T$ is not necessary here, as computational shortcuts exist for finding vector pairs of high similarity. I opted to use FAISS [https://github.com/facebookresearch/faiss] from Facebook AI Research, which reduces the number of operations needed for this task by first grouping all the vectors in one dataset (matrix) into clusters, then only computing similarity scores between a vector and the ones in the nearest cluster. 
+
+Results are a mixed-bag. The largest similarity score was between 2/9515 and 11/17596. The autointerps are respectively `words related to organization and realization` and `phrases related to utilizing tools or resources.` Upon inspection of the frequently activating keywords, these autointerps are incorrect. Both features are moderately-strong detectors of British English being used. 
+
+- 2/9515 activating keywords
+    - organisation
+    - realise
+    - recognised
+    - emphasising
+- 11/17596
+    - manoeuvure
+    - utilising
+    - focussed
+    - armour
+    - 999 (this is the emergency phone number in the UK, as well as many other countries in the old British commonwealth)
+    - sceptical
+    
+Interestingly, this feature pair did not have a correlation greater than 0.9, even though it is (in my opinion) a pretty good example of a recurring feature.
+
+The second most similar feature pair was 2/21514 and 11/1652; these features respectively have activation densities of 5.6% and 4.0%, and don't have any legitimate interpretations. They do share a most-activating token, which is a string of special characters `âĢİ.` Spooky. This feature pair also was not discovered by activation correlation.
+
+The third most similar feature pair was 2/5186 and 11/5362, which are `the word Wilson with varying levels of specificity` and `the word Wilson in various contexts.` This one makes a lot more sense, and also was discovered by activation correlation (0.954). Again, the later feature is smarter, as evidenced by only it activating on `Seahawks Quarterback Russell.` 
+
+Overall, I like this method a lot more finding persistent features within a model, but there's no obvious way to translate it for different residual streams. This is where the idea of the bilinear product comes in. If two separate models have the exact same tokenizer, up to rearranging the indices of their token vocabularies. We can perhaps project the decoder vectors of their SAE's into the same space using their respective unembedding matrices, and then apply FAISS to get a list of related features. 
 
 
-
-# PyTorch Implementation
-
-```python
-import torch
-import torch.nn as nn
-
-class SparseAutoencoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim, sparsity_lambda=1e-3):
-        super().__init__()
-        self.encoder = nn.Linear(input_dim, hidden_dim)
-        self.decoder = nn.Linear(hidden_dim, input_dim)
-        self.lambda_ = sparsity_lambda
-
-    def forward(self, x):
-        encoded = torch.relu(self.encoder(x))
-        decoded = self.decoder(encoded)
-        return decoded, encoded

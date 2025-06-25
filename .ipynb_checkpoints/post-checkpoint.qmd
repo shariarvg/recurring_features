@@ -31,33 +31,55 @@ In this technical blog post, I outline my thought process for this problem, star
 First, let's formalizing a recurring feature as a pair of latents that exist in separate models or separate layers of the same model but represent the same concept. Already this definition is hairy, because SAE latents are generally non-atomic and have somewhat subjective interpretations, which are typically written by an LLM. However, a baseline strategy for identifying whether two latents represent the same concept is to correlate their activations, using a large corpus of documents. It's immediately clear that searching for recurring features will be very time and memory intensive, particularly for SAE's with large expansion factors and low activation densities. The main computational trick I use here is calculating correlation online (so that batches can be deleted after activations are computed) and storing the $D_1$ x $D_2$ correlation matrix in sparse matrix form, so as to not eat too much memory. Together they seem to be enough for obtaining all the features with $>0.9$ correlation between two layers of gpt-2 small on a single NVIDIA A6000 GPU. 
 
 
+## Examples of correlated features
+
+In my preliminary work, I mainly focus on layers 2 and 11 of gpt2-small, using the SAE trained on these layers by Joseph Bloom (https://www.neuronpedia.org/gpt2-small/res-jb). I extracted 50,000 texts from the wiki-text dataset, obtained latent activations for both layers on the full dataset, and extracted all feature pairs with greater than 0.9 correlation. Here are some of the features that I found most interesting. Generally, the notation 'X/Y' refers to the latent with index Y within layer X of the model.
 
 
+Latent 2/13673 has the Neuronpedia auto-interpretation `mentions of the Android operating system.` 11/11487 is ` mentions of the term Android, likely in the context of technology.` Their correlation is 0.994 on the dataset I've created, but producing examples in which the later feature activates but the earlier one doesn't is simple. The prompt `Google's operating system for phones` causes no activations in the earlier feature, but activates on all but one token in the second feature. 
 
-We want to minimize a loss of the form:
 
-$$
-\mathcal{L} = \|x - \hat{x}\|_2^2 + \lambda \sum_{i=1}^d |h_i|
-$$
+Another example pair is 2/10606 (words related to software and technology) and 11/21276 (specific references to software programs). Entering `the code was written` does not activate the first feature, but it activates the second feature on all tokens. 
 
-where $h_i$ are hidden layer activations.
+So within two layers of the same model, one recurring archetype of `recurring feature` is a feature becoming more semantic and less keyword-based in the later layer than the earlier layer; we could even think of this as the same feature gaining higher recall, but I think that would be inaccurate. Overall, this pattern of feature development makes sense, especially given that we're starting with a very early layer -- the layers in-between allow for processing context and making a more intelligent representation, which is why the later layer is less literal. Anecdotally, I was slightly surprised by how many of the earlier features only activate for a few keywords, e.g. only activating on the word 'Android.' It would be interesting to visualize the number of unique activating keywords for each of these latents, and how that distribution differs between layers, and whether this distribution tends to converge to a degenerate one after (e.g.) 6 or 7 MHA layers.
 
----
+## Similarity in decoder weights
 
-# PyTorch Implementation
+Each attention block and MLP block transforms its input, but because of the residual connection between these blocks, it's intuitively possible that if one feature persists between two layers, it will manifest in the same subspace between them. I don't have a formal reasoning for why this necessarily will be the case, but I believe that it can be the case. Consider the (unrealistic) example in which one feature emerges in layer L of the model but does not superimpose with any other feature. Imagine that we discover it through a decoder vector of $a \vec e_i + b \vec e_j + c \vec e_k$, where $a,b,c$ are arbitrary reals and $i,j,k$ are arbitrary integers. If the attention block and MLP block of layer L+1 both somehow do not write to indices $i,j,k$ of the residual stream, then we can expect this feature to recur in layer $L+1$, and with the same decoder vector.
 
-```python
-import torch
-import torch.nn as nn
+Again, this reasoning is meant to motivate a hypothesis rather than prove a method. An empirical validation comes from checking the dot products of correlated features, and comparing this distribution to that of a simulated set of randomly-chosen feature pairs. There's a clear separation between the two distributions, suggesting that we can hopefully identify recurring features without even needing to obtain activations. 
 
-class SparseAutoencoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim, sparsity_lambda=1e-3):
-        super().__init__()
-        self.encoder = nn.Linear(input_dim, hidden_dim)
-        self.decoder = nn.Linear(hidden_dim, input_dim)
-        self.lambda_ = sparsity_lambda
+![Decoder weight dot products](plots/null_alt_dot.png)
 
-    def forward(self, x):
-        encoded = torch.relu(self.encoder(x))
-        decoded = self.decoder(encoded)
-        return decoded, encoded
+I hypothesized that two instances of a recurrent feature would have a high dot product when projected into the unembedding space (e.g. logit vectors), and for that reason I also obtained the distribution of bilinear products $v_1 W_U W_U^T v_2$, which again seem to be separated, but not as much as the dot product distributions.
+
+![Decoder weight bilinear products](plots/null_alt_bilinear.png)
+
+The natural application is to replace my 1st approach for discovering recurring features (high correlation on activation sets) with a decoder weights similarity search. The advantage of not using activations is that we don't have to worry about bias (e.g. using a dataset that only represents a certain set of concepts, e.g. the IMDb dataset) or the computational bottleneck of performing inference over a large dataset and two relatively-large models.
+
+If our two decoder matrices are $D_1$ and $D_2$ (where each row is a decoder vector), we're effectively searching for the largest elements in $D_1 D_2^T$. Computing $D_1 D_2^T$ is not necessary here, as computational shortcuts exist for finding vector pairs of high similarity. I opted to use FAISS [https://github.com/facebookresearch/faiss] from Facebook AI Research, which reduces the number of operations needed for this task by first grouping all the vectors in one dataset (matrix) into clusters, then only computing similarity scores between a vector and the ones in the nearest cluster. 
+
+Results are a mixed-bag. The largest similarity score was between 2/9515 and 11/17596. The autointerps are respectively `words related to organization and realization` and `phrases related to utilizing tools or resources.` Upon inspection of the frequently activating keywords, these autointerps are incorrect. Both features are moderately-strong detectors of British English being used. 
+
+- 2/9515 activating keywords
+    - organisation
+    - realise
+    - recognised
+    - emphasising
+- 11/17596
+    - manoeuvure
+    - utilising
+    - focussed
+    - armour
+    - 999 (this is the emergency phone number in the UK, as well as many other countries in the old British commonwealth)
+    - sceptical
+    
+Interestingly, this feature pair did not have a correlation greater than 0.9, even though it is (in my opinion) a pretty good example of a recurring feature.
+
+The second most similar feature pair was 2/21514 and 11/1652; these features respectively have activation densities of 5.6% and 4.0%, and don't have any legitimate interpretations. They do share a most-activating token, which is a string of special characters `âĢİ.` Spooky. This feature pair also was not discovered by activation correlation.
+
+The third most similar feature pair was 2/5186 and 11/5362, which are `the word Wilson with varying levels of specificity` and `the word Wilson in various contexts.` This one makes a lot more sense, and also was discovered by activation correlation (0.954). Again, the later feature is smarter, as evidenced by only it activating on `Seahawks Quarterback Russell.` 
+
+Overall, I like this method a lot more finding persistent features within a model, but there's no obvious way to translate it for different residual streams. This is where the idea of the bilinear product comes in. If two separate models have the exact same tokenizer, up to rearranging the indices of their token vocabularies. We can perhaps project the decoder vectors of their SAE's into the same space using their respective unembedding matrices, and then apply FAISS to get a list of related features. 
+
+
