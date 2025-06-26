@@ -10,6 +10,10 @@ format:
     code-tools: true
 ---
 
+::: {.tldr}
+I became interested in comparing different models using their shared features, as discovered through dictionary learning procedures. This foray is meant to be an extension of model-diffing, but starts from basic principles, including correlation activation. I share some empirical results from an exploration into persistent features between different layers of gpt-2, which I find to be a pretty interesting case study into how concepts evolve within a transformer. My code for finding recurring features, through both methods described, can be found at https://github.com/shariarvg/recurring_features. More updates soon!
+:::
+
 ## Introduction: Features as a way of comparing models
 
 Good features are the key to a good model, whether that model is a linear regression or something much more complex. In prediction settings, particularly competitive ones like Kaggle competitions, feature engineering is often more important than the choice of fitting procedure. 
