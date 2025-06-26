@@ -35,8 +35,15 @@ First, let's formalizing a recurring feature as a pair of latents that exist in 
 
 In my preliminary work, I mainly focus on layers 2 and 11 of gpt2-small, using the SAE trained on these layers by Joseph Bloom (https://www.neuronpedia.org/gpt2-small/res-jb). I extracted 50,000 texts from the wiki-text dataset, obtained latent activations for both layers on the full dataset, and extracted all feature pairs with greater than 0.9 correlation. Here are some of the features that I found most interesting. Generally, the notation 'X/Y' refers to the latent with index Y within layer X of the model.
 
+Latent 2/13673 has the Neuronpedia auto-interpretation `mentions of the Android operating system.` 11/11487 is ` mentions of the term Android, likely in the context of technology.` Their correlation is 0.994 on the dataset I've created, but producing examples in which the later feature activates but the earlier one doesn't is simple. The prompt `Google's operating system for phones` causes no activations in the earlier feature, but activates on all but one token in the second feature.
 
-Latent 2/13673 has the Neuronpedia auto-interpretation `mentions of the Android operating system.` 11/11487 is ` mentions of the term Android, likely in the context of technology.` Their correlation is 0.994 on the dataset I've created, but producing examples in which the later feature activates but the earlier one doesn't is simple. The prompt `Google's operating system for phones` causes no activations in the earlier feature, but activates on all but one token in the second feature. 
+<iframe 
+    src="https://neuronpedia.org/gpt2-small/2-res-jb/13673?embed=true&embedexplanation=true&embedplots=true&embedtest=true&height=300" 
+    width="70%" 
+    height="300" 
+    frameborder="0" 
+    allowfullscreen>
+</iframe>
 
 
 Another example pair is 2/10606 (words related to software and technology) and 11/21276 (specific references to software programs). Entering `the code was written` does not activate the first feature, but it activates the second feature on all tokens. 
