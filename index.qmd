@@ -10,7 +10,7 @@ format:
     code-tools: true
 ---
 
-# Introduction
+## Introduction
 
 In statistical prediction settings, it's known that the best models are the ones with the most important features, rather than the most complicated architectures. Choosing good features for your prediction model can be easy, thanks to regularization techniques and the expressiveness of deep architectures. 
 
