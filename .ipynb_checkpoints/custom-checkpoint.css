@@ -1,0 +1,141 @@
+/* ========== Base Styling ========== */
+
+body {
+  font-family: "Inter", "Helvetica Neue", sans-serif;
+  color: #1a1a1a;
+  background-color: #ffffff;
+  line-height: 1.7;
+  font-size: 17px;
+  max-width: 800px;
+  margin: auto;
+  padding: 2rem;
+}
+
+/* ========== Headings ========== */
+
+h1, h2, h3, h4 {
+  font-family: "Inter", "Helvetica Neue", sans-serif;
+  font-weight: 600;
+  color: #111111;
+  margin-top: 2.2em;
+  margin-bottom: 0.5em;
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-size: 2.2rem;
+  border-bottom: 1px solid #eaeaea;
+  padding-bottom: 0.3rem;
+}
+
+h2 {
+  font-size: 1.8rem;
+  color: #202020;
+}
+
+h3 {
+  font-size: 1.4rem;
+  color: #333333;
+}
+
+/* ========== Code ========== */
+
+code {
+  background-color: #f6f8fa;
+  color: #d63384;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
+pre code {
+  display: block;
+  padding: 1em;
+  overflow-x: auto;
+  background-color: #f8f8f8;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  color: #1a1a1a;
+}
+
+/* ========== Links ========== */
+
+a {
+  color: #005cc5;
+  text-decoration: none;
+  border-bottom: 1px solid #cce5ff;
+}
+
+a:hover {
+  background-color: #e6f0ff;
+  border-bottom: 1px solid #005cc5;
+}
+
+/* ========== Figures, Captions, Images ========== */
+
+figure {
+  text-align: center;
+  margin: 2em 0;
+}
+
+figcaption {
+  font-size: 0.9em;
+  color: #666666;
+  margin-top: 0.4em;
+}
+
+/* ========== TOC (Table of Contents) ========== */
+
+.sidebar nav[role="doc-toc"] {
+  background-color: #f9f9f9;
+  border-left: 4px solid #e2e2e2;
+  padding: 1rem;
+  border-radius: 6px;
+  font-size: 0.95em;
+}
+
+/* ========== Callouts ========== */
+
+.callout {
+  border-left: 4px solid #4c9aff;
+  background-color: #f0f8ff;
+  padding: 1em;
+  margin: 1.5em 0;
+  border-radius: 4px;
+}
+
+/* ========== Custom Blocks ========== */
+
+blockquote {
+  font-style: italic;
+  color: #555;
+  border-left: 4px solid #ddd;
+  margin: 1.5em 0;
+  padding-left: 1em;
+}
+
+/* ========== Tables ========== */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 2em 0;
+}
+
+th, td {
+  border: 1px solid #e0e0e0;
+  padding: 0.75em;
+  text-align: left;
+}
+
+thead {
+  background-color: #fafafa;
+}
+
+/* ========== Misc ========== */
+
+hr {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 3em 0;
+}
