@@ -2,11 +2,11 @@ project:
   type: website
 
 website:
-  title: "Repeated Features within and across SAE's"
+  title: "...?"
   navbar:
     left:
       - href: post.qmd
-        text: "Sparse Autoencoders"
+        text: "Mechninterp/Explainability"
 
 format:
   html:

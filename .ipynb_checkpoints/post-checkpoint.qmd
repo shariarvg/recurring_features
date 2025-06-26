@@ -1,5 +1,5 @@
 ---
-title: "Understanding Sparse Autoencoders"
+title: "Finding features that persist across layers and models"
 author: "Shariar Vaez-Ghaemi"
 date: "2025-06-25"
 format:
@@ -26,12 +26,12 @@ In this technical blog post, I outline my thought process for this problem, star
 
 ---
 
-# How to find 'recurring features'
+## A first-pass approach: correlated features
 
 First, let's formalizing a recurring feature as a pair of latents that exist in separate models or separate layers of the same model but represent the same concept. Already this definition is hairy, because SAE latents are generally non-atomic and have somewhat subjective interpretations, which are typically written by an LLM. However, a baseline strategy for identifying whether two latents represent the same concept is to correlate their activations, using a large corpus of documents. It's immediately clear that searching for recurring features will be very time and memory intensive, particularly for SAE's with large expansion factors and low activation densities. The main computational trick I use here is calculating correlation online (so that batches can be deleted after activations are computed) and storing the $D_1$ x $D_2$ correlation matrix in sparse matrix form, so as to not eat too much memory. Together they seem to be enough for obtaining all the features with $>0.9$ correlation between two layers of gpt-2 small on a single NVIDIA A6000 GPU. 
 
 
-## Examples of correlated features
+### Examples of correlated features
 
 In my preliminary work, I mainly focus on layers 2 and 11 of gpt2-small, using the SAE trained on these layers by Joseph Bloom (https://www.neuronpedia.org/gpt2-small/res-jb). I extracted 50,000 texts from the wiki-text dataset, obtained latent activations for both layers on the full dataset, and extracted all feature pairs with greater than 0.9 correlation. Here are some of the features that I found most interesting. Generally, the notation 'X/Y' refers to the latent with index Y within layer X of the model.
 
@@ -94,9 +94,38 @@ The answer turns out to be: yes, there are several features that seem to be exac
 :::
 :::
 
-Interestingly, there seem to be multiple features in layers 7 and 8 that activate on <|endoftext|>, and all of them seem to have roughly the same decoder weights (similarity score of 1.0). 
+Interestingly, there seem to be multiple features in layers 7 and 8 that activate on <|endoftext|>, and all of them seem to have roughly the same decoder weights (similarity score of 1.0).  
 
+## Visualizing Representation Comparison
 
-Overall, I like this method a lot more finding persistent features within a model, but there's no obvious way to translate it for different residual streams. This is where the idea of the bilinear product comes in. If two separate models have the exact same tokenizer, up to rearranging the indices of their token vocabularies. We can perhaps project the decoder vectors of their SAE's into the same space using their respective unembedding matrices, and then apply FAISS to get a list of related features. 
+NB: As I drift from comparing different layers within the same model to comparing different layers of different models, I'm going to generalize to the idea of comparing neural representations. 
 
+We saw a lot of features copied from layers 7 to 8, and not a lot between layers 2 and 11. This makes sense, as layers 2 and 11 should be much different as representations than layers 7 and 8. It would be useful to have a similarity metric between two representations that expresses how different their featurizations are. This ties back to the original ideal of this project, which is to have a method that quantifies the similarity between two transformer computational graphs, based on the features they both identify (making the rather strong assumption, at least within our scope, that both of these representations have sparse replacement models available).
 
+A first-pass at visualizing the similarity between two layers is to obtain, for each latent in one layer, the largest similarity score with any latent in the other layer. Mathematically, if $W_{d,L_1}$ and $W_{d,L_2}$ are the decoder matrices (in $\mathcal{R}^{F x D_H}, where each row is a feature, define
+
+$$
+\rho_{L_1, L_2} (i) = max_{j \in |F|} W_{d,1}[i,:]^T W_{d,2}[j,:]
+$$
+
+If $\rho_{L_1, L_2} (i)$ is high for all $i \in |F|$, we can comfortably say that $L_1$ and $L_2$ share similar featurizations. We can display the vector $\vec \rho(L_1, L_2) = (\rho_{L_1, L_2} (1)... \rho_{L_1, L_2} (F))$
+
+![Histograms of latent max similarities](plots/latent_max_sims.png){width=50%}
+
+Here, I plot the $\rho$ vectors between layers 1, 5, 8, and 11, blacking out the diagonal because it is obviously just 1.
+
+![Histogram grid of latent max similarities: 1, 5, 8, 11](plots/grid_layer_vectors.png)
+
+## Model diffing with decoder weights
+
+Overall, I like the decoder-weights approach a lot more for finding persistent features within a model, but there's no obvious way to translate it for different residual streams. One application is to focus on two different models that originate from the same base model, in the hopes that the residual streams are similar enough that the same feature in both models would occupy similar subspaces. This is a core component of [model diffing](https://transformer-circuits.pub/2025/crosscoder-diffing-update/index.html), which Anthropic has already briefly used in order to show differences between base and fine-tuned models. I think their work on this is quite exciting but somewhat limited to feature exploration, whereas I'm more interested in directly comparing models by understanding the features that they use. 
+
+At this point, it's important to recall that autointerp/activation tracking has been central to verifying that two features really are the same, and for that I credit Neuronpedia and all the SAE trainers who have populated it. For the next step in this blog, I'll need to diff two models that originate from the same base model, and they'll both need to already have SAE's. The pretrained SAE's library in [sae lens](https://github.com/jbloomAus/SAELens) is quite extensive, although I believe that the only pair of models here originating from the same base are Base Llama-3-8b and Deepseek-R1-distilled Llama-3-8b. Respectively, residual stream layers 18 and 25 are available, so I visualize the feature relationships here.
+
+![$\rho$ between Distill-Llama and Base-Llama](plots/distill_llama.png)
+
+## Next steps
+
+I meant for this to be a longer blog post that culminated in a proposed methodology for model/representation comparison with sparse-coded feature weights. I thought it would make sense to put these explorations and thought experiments into an earlier (first) technical blog post, then later update it with new results once I've trained a pair of good SAE's based on the language models I'm using.
+
+I'm primarily interested in an approach that is empirically verifiable, which (to me) means that I can set up toy experiments with small transformers where the feature similarity is either analytically tractable, or a good hypothesis can be made as to what they'll be. An even earlier pass would be to build off the work of [Toy Models of Superposition](https://transformer-circuits.pub/2022/toy_model/index.html), since the transformer architecture itself can be ignored to start. 

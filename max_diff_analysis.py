@@ -2,7 +2,7 @@ import torch as t
 import pandas as pd
 from sae_lens import SAE, HookedSAETransformer
 from typing import Tuple, Optional
-from feature_corrs import process_dataset
+from processing_and_loading import process_dataset
 import numpy as np
 
 def get_all_caches(dataloader, model: HookedSAETransformer, sae1: SAE, sae2: SAE):

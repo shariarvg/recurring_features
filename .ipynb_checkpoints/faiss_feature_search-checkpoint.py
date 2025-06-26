@@ -1,11 +1,12 @@
 import numpy as np
 import faiss
 import feature_corrs
+import preprocessing_and_loading as pal
 
 cpu_index = faiss.IndexFlatIP(1000)
 #res = faiss.StandardGpuResources()  # default GPU resources
 
-model, sae1, sae2 = feature_corrs.load_model_and_saes('cpu', 'gpt2-small-res-jb', 2, 11)
+model, sae1, sae2 = pal.load_model_and_saes('cpu', 'gpt2-small-res-jb', 2, 11)
 
 # Create example data
 W_a = sae1.W_dec.detach().numpy()# np.random.randn(20000, 1000).astype('float32')
