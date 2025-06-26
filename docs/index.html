@@ -175,8 +175,7 @@ window.Quarto = {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a>
-  <ul class="collapse">
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a></li>
   <li><a href="#a-first-pass-approach-correlated-features" id="toc-a-first-pass-approach-correlated-features" class="nav-link" data-scroll-target="#a-first-pass-approach-correlated-features">A first-pass approach: correlated features</a>
   <ul class="collapse">
   <li><a href="#examples-of-correlated-features" id="toc-examples-of-correlated-features" class="nav-link" data-scroll-target="#examples-of-correlated-features">Examples of correlated features</a></li>
@@ -185,7 +184,6 @@ window.Quarto = {
   <li><a href="#visualizing-representation-comparison" id="toc-visualizing-representation-comparison" class="nav-link" data-scroll-target="#visualizing-representation-comparison">Visualizing Representation Comparison</a></li>
   <li><a href="#model-diffing-with-decoder-weights" id="toc-model-diffing-with-decoder-weights" class="nav-link" data-scroll-target="#model-diffing-with-decoder-weights">Model diffing with decoder weights</a></li>
   <li><a href="#next-steps" id="toc-next-steps" class="nav-link" data-scroll-target="#next-steps">Next steps</a></li>
-  </ul></li>
   </ul>
 </nav>
     </div>
@@ -223,8 +221,8 @@ window.Quarto = {
 </header>
 
 
-<section id="introduction" class="level1">
-<h1>Introduction</h1>
+<section id="introduction" class="level2">
+<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
 <p>In statistical prediction settings, it’s known that the best models are the ones with the most important features, rather than the most complicated architectures. Choosing good features for your prediction model can be easy, thanks to regularization techniques and the expressiveness of deep architectures.</p>
 <p>But while feature engineering has become an abandoned art, feature awareness is still crucial. In the race to understand the computational paths taken by a transformer in computing a next-token prediction, mechanistic interpretability researchers have put effort into extracting concept subspaces within the intermediate representations of these transformer architectures. In particular, the technique of fitting sparse coders to these internal layer activations has allowed for obtaining explainable neurons, which typically do not exist in transformers thanks to the phenomenon of superposition.</p>
 <p>In working on classifiers based on natural language, I’ve become interested in how neural classifiers can be compared with each other. Since my work has primarily been focused on clinical text (e.g.&nbsp;discharge summaries) and clinical outcomes (e.g.&nbsp;30-day mortality), I’ll narrate my motivation through the lens of the healthcare domain, which I consider to be a high-stakes setting for interpretability performance. If I have two models for patient mortality prediction, one developed from fine-tuning transformer A on Dataset 1, and another developed from fine-tuning transformer B on Dataset 2, how can I compare these two models, ultimately to figure out which one has more signal-based computational processes, performs more robustly, and understands more reasons for death?</p>
@@ -232,6 +230,7 @@ window.Quarto = {
 <p>Thanks to sparse coding algorithms for transformer interpretability, we now have a toolkit for comparing two models based on the features that they use in prediction. Off the bat, this is still a difficult problem because obtaining the features that are intrinsic to a trained architecture requires 1) obtaining a large, comprehensive set of example texts with activations, 2) choosing a layer or layers within the model to focus on, and 3) training a sparse crosscoder using that dataset and those layers. Assuming this has already been done for both models (separately), there’s no obvious way to compare the feature sets of the two models.</p>
 <p>In this technical blog post, I outline my thought process for this problem, starting with the much more basic question of finding a set of features that are shared between two residual stream layers of the same transformer model. There are some interesting results from just looking at gpt-2 small, for which residual stream SAE’s have already been trained and made available through the SAELens library.</p>
 <hr>
+</section>
 <section id="a-first-pass-approach-correlated-features" class="level2">
 <h2 class="anchored" data-anchor-id="a-first-pass-approach-correlated-features">A first-pass approach: correlated features</h2>
 <p>First, let’s formalizing a recurring feature as a pair of latents that exist in separate models or separate layers of the same model but represent the same concept. Already this definition is hairy, because SAE latents are generally non-atomic and have somewhat subjective interpretations, which are typically written by an LLM. However, a baseline strategy for identifying whether two latents represent the same concept is to correlate their activations, using a large corpus of documents. It’s immediately clear that searching for recurring features will be very time and memory intensive, particularly for SAE’s with large expansion factors and low activation densities. The main computational trick I use here is calculating correlation online (so that batches can be deleted after activations are computed) and storing the <span class="math inline">\(D_1\)</span> x <span class="math inline">\(D_2\)</span> correlation matrix in sparse matrix form, so as to not eat too much memory. Together they seem to be enough for obtaining all the features with <span class="math inline">\(&gt;0.9\)</span> correlation between two layers of gpt-2 small on a single NVIDIA A6000 GPU.</p>
@@ -357,7 +356,6 @@ Neuronpedia View of gpt2-small 11/11487
 
 <!-- -->
 
-</section>
 </section>
 
 </main> <!-- /main -->
@@ -823,7 +821,7 @@ Neuronpedia View of gpt2-small 11/11487
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu"># Introduction</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu">## Introduction</span></span>
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>In statistical prediction settings, it's known that the best models are the ones with the most important features, rather than the most complicated architectures. Choosing good features for your prediction model can be easy, thanks to regularization techniques and the expressiveness of deep architectures. </span>
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
